@@ -1,98 +1,56 @@
-package esepunittests
+package gradecalculator
+
+import "math"
 
 type GradeCalculator struct {
-	assignments []Grade
-	exams       []Grade
-	essays      []Grade
+	assignments []float64
+	exams       []float64
+	essays      []float64
 }
 
-type GradeType int
-
-const (
-	Assignment GradeType = iota
-	Exam
-	Essay
-)
-
-var gradeTypeName = map[GradeType]string{
-	Assignment: "assignment",
-	Exam:       "exam",
-	Essay:      "essay",
+func New(assignments, exams, essays []float64) *GradeCalculator {
+	return &GradeCalculator{assignments: assignments, exams: exams, essays: essays}
 }
 
-func (gt GradeType) String() string {
-	return gradeTypeName[gt]
-}
-
-type Grade struct {
-	Name  string
-	Grade int
-	Type  GradeType
-}
-
-func NewGradeCalculator() *GradeCalculator {
-	return &GradeCalculator{
-		assignments: make([]Grade, 0),
-		exams:       make([]Grade, 0),
-		essays:      make([]Grade, 0),
+func avg(xs []float64) float64 {
+	if len(xs) == 0 {
+		return 0
 	}
+	var s float64
+	for _, x := range xs {
+		s += x
+	}
+	return s / float64(len(xs))
 }
 
-func (gc *GradeCalculator) GetFinalGrade() string {
-	numericalGrade := gc.calculateNumericalGrade()
+// FinalNumeric computes the final numeric grade (0–100).
+// Fixed weights per spec: A=0.50, Exams=0.35, Essays=0.15.
+func (g *GradeCalculator) FinalNumeric() float64 {
+	const wa, we, ws = 0.50, 0.35, 0.15
+	a := avg(g.assignments)
+	e := avg(g.exams)
+	s := avg(g.essays)
+	return a*wa + e*we + s*ws
+}
 
-	if numericalGrade >= 90 {
+// Letter maps a numeric grade to A/B/C/D/F using inclusive lower bounds.
+func (g *GradeCalculator) Letter(num float64) string {
+	// Compare on a consistent precision to avoid float flukes near cutoffs.
+	n := math.Round(num*1000) / 1000
+	switch {
+	case n >= 90:
 		return "A"
-	} else if numericalGrade >= 80 {
+	case n >= 80:
 		return "B"
-	} else if numericalGrade >= 70 {
+	case n >= 70:
 		return "C"
-	} else if numericalGrade >= 60 {
+	case n >= 60:
 		return "D"
-	}
-
-	return "F"
-}
-
-func (gc *GradeCalculator) AddGrade(name string, grade int, gradeType GradeType) {
-	switch gradeType {
-	case Assignment:
-		gc.assignments = append(gc.assignments, Grade{
-			Name:  name,
-			Grade: grade,
-			Type:  Assignment,
-		})
-	case Exam:
-		gc.exams = append(gc.exams, Grade{
-			Name:  name,
-			Grade: grade,
-			Type:  Exam,
-		})
-	case Essay:
-		gc.essays = append(gc.essays, Grade{
-			Name:  name,
-			Grade: grade,
-			Type:  Essay,
-		})
+	default:
+		return "F"
 	}
 }
 
-func (gc *GradeCalculator) calculateNumericalGrade() int {
-	assignment_average := computeAverage(gc.assignments)
-	exam_average := computeAverage(gc.exams)
-	essay_average := computeAverage(gc.exams)
-
-	weighted_grade := float64(assignment_average)*.5 + float64(exam_average)*.35 + float64(essay_average)*.15
-
-	return int(weighted_grade)
-}
-
-func computeAverage(grades []Grade) int {
-	sum := 0
-
-	for grade, _ := range grades {
-		sum += grade
-	}
-
-	return sum / len(grades)
+func (g *GradeCalculator) Pass(num float64) bool {
+	return g.Letter(num) == "A" || g.Letter(num) == "B" || g.Letter(num) == "C"
 }
